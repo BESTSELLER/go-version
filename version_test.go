@@ -1,6 +1,8 @@
 package version
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -21,13 +23,13 @@ func TestNewVersion(t *testing.T) {
 		{"1.2-beta.5", false},
 		{"\n1.2", true},
 		{"1.2.0-x.Y.0+metadata", false},
-		{"1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"1.2.3-rc1-with-hypen", false},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.3-rc1-with-hyphen", false},
 		{"1.2.3.4", false},
 		{"1.2.0.4-x.Y.0+metadata", false},
-		{"1.2.0.4-x.Y.0+metadata-width-hypen", false},
+		{"1.2.0.4-x.Y.0+metadata-width-hyphen", false},
 		{"1.2.0-X-1.2.0+metadata~dist", false},
-		{"1.2.3.4-rc1-with-hypen", false},
+		{"1.2.3.4-rc1-with-hyphen", false},
 		{"1.2.3.4", false},
 		{"v1.2.3", false},
 		{"foo1.2.3", true},
@@ -64,13 +66,13 @@ func TestNewSemver(t *testing.T) {
 		{"1.2-beta.5", false},
 		{"\n1.2", true},
 		{"1.2.0-x.Y.0+metadata", false},
-		{"1.2.0-x.Y.0+metadata-width-hypen", false},
-		{"1.2.3-rc1-with-hypen", false},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.3-rc1-with-hyphen", false},
 		{"1.2.3.4", false},
 		{"1.2.0.4-x.Y.0+metadata", false},
-		{"1.2.0.4-x.Y.0+metadata-width-hypen", false},
+		{"1.2.0.4-x.Y.0+metadata-width-hyphen", false},
 		{"1.2.0-X-1.2.0+metadata~dist", false},
-		{"1.2.3.4-rc1-with-hypen", false},
+		{"1.2.3.4-rc1-with-hyphen", false},
 		{"1.2.3.4", false},
 		{"v1.2.3", false},
 		{"foo1.2.3", true},
@@ -87,6 +89,38 @@ func TestNewSemver(t *testing.T) {
 			t.Fatalf("expected error for version: %q", tc.version)
 		} else if !tc.err && err != nil {
 			t.Fatalf("error for version %q: %s", tc.version, err)
+		}
+	}
+}
+
+func TestCore(t *testing.T) {
+	cases := []struct {
+		v1 string
+		v2 string
+	}{
+		{"1.2.3", "1.2.3"},
+		{"2.3.4-alpha1", "2.3.4"},
+		{"3.4.5alpha1", "3.4.5"},
+		{"1.2.3-2", "1.2.3"},
+		{"4.5.6-beta1+meta", "4.5.6"},
+		{"5.6.7.1.2.3", "5.6.7"},
+	}
+
+	for _, tc := range cases {
+		v1, err := NewVersion(tc.v1)
+		if err != nil {
+			t.Fatalf("error for version %q: %s", tc.v1, err)
+		}
+		v2, err := NewVersion(tc.v2)
+		if err != nil {
+			t.Fatalf("error for version %q: %s", tc.v2, err)
+		}
+
+		actual := v1.Core()
+		expected := v2
+
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("expected: %s\nactual: %s", expected, actual)
 		}
 	}
 }
@@ -367,6 +401,75 @@ func TestVersionSegments64(t *testing.T) {
 			if actual[0] != expected {
 				t.Fatalf("Segments64 is mutable")
 			}
+		}
+	}
+}
+
+func TestJsonMarshal(t *testing.T) {
+	cases := []struct {
+		version string
+		err     bool
+	}{
+		{"1.2.3", false},
+		{"1.2.0-x.Y.0+metadata", false},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.3-rc1-with-hyphen", false},
+		{"1.2.3.4", false},
+		{"1.2.0.4-x.Y.0+metadata", false},
+		{"1.2.0.4-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.0-X-1.2.0+metadata~dist", false},
+		{"1.2.3.4-rc1-with-hyphen", false},
+		{"1.2.3.4", false},
+	}
+
+	for _, tc := range cases {
+		v, err1 := NewVersion(tc.version)
+		if err1 != nil {
+			t.Fatalf("error for version %q: %s", tc.version, err1)
+		}
+
+		parsed, err2 := json.Marshal(v)
+		if err2 != nil {
+			t.Fatalf("error marshaling version %q: %s", tc.version, err2)
+		}
+		result := string(parsed)
+		expected := fmt.Sprintf("%q", tc.version)
+		if result != expected && !tc.err {
+			t.Fatalf("Error marshaling unexpected marshaled content: result=%q expected=%q", result, expected)
+		}
+	}
+}
+
+func TestJsonUnmarshal(t *testing.T) {
+	cases := []struct {
+		version string
+		err     bool
+	}{
+		{"1.2.3", false},
+		{"1.2.0-x.Y.0+metadata", false},
+		{"1.2.0-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.3-rc1-with-hyphen", false},
+		{"1.2.3.4", false},
+		{"1.2.0.4-x.Y.0+metadata", false},
+		{"1.2.0.4-x.Y.0+metadata-width-hyphen", false},
+		{"1.2.0-X-1.2.0+metadata~dist", false},
+		{"1.2.3.4-rc1-with-hyphen", false},
+		{"1.2.3.4", false},
+	}
+
+	for _, tc := range cases {
+		expected, err1 := NewVersion(tc.version)
+		if err1 != nil {
+			t.Fatalf("err: %s", err1)
+		}
+
+		actual := &Version{}
+		err2 := json.Unmarshal([]byte(fmt.Sprintf("%q", tc.version)), actual)
+		if err2 != nil {
+			t.Fatalf("error unmarshaling version: %s", err2)
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("error unmarshaling, unexpected object content: actual=%q expected=%q", actual, expected)
 		}
 	}
 }
