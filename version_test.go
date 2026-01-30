@@ -53,6 +53,33 @@ func TestNewVersion(t *testing.T) {
 	}
 }
 
+func TestNewVersionWithPrefix(t *testing.T) {
+	cases := []struct {
+		version string
+		prefix  string
+		err     bool
+	}{
+		{"", "release-", true},
+		{"rel-1.2.3", "release-", true},
+		{"release_1.2.3", "release-", true},
+		{"release_1.2.0-x.Y.0+metadata", "release_", false},
+		{"release-1.2.0-x.Y.0+metadata-width-hyphen", "release-", false},
+		{"myrelease-1.2.3-rc1-with-hyphen", "myrelease-", false},
+		{"prefix-1.2.3.4", "prefix-", false},
+		{"controller-v0.40.2", "controller-", false},
+		{"azure-cli-v1.4.2", "azure-cli-", false},
+	}
+
+	for _, tc := range cases {
+		_, err := NewVersion(tc.version, WithPrefix(tc.prefix))
+		if tc.err && err == nil {
+			t.Fatalf("expected error for version: %q", tc.version)
+		} else if !tc.err && err != nil {
+			t.Fatalf("error for version %q: %s", tc.version, err)
+		}
+	}
+}
+
 func TestNewSemver(t *testing.T) {
 	cases := []struct {
 		version string

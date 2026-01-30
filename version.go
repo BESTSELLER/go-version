@@ -49,6 +49,23 @@ const (
 		`?`
 )
 
+// Optional options for NewVersion function.
+type options struct {
+	// If set, this prefix will be trimmed from the version string before parsing.
+	prefix string
+}
+
+// Option is a functional option for NewVersion.
+type Option func(*options)
+
+// WithPrefix is a functional option that sets a prefix to be removed from the
+// version string before parsing.
+func WithPrefix(prefix string) Option {
+	return func(o *options) {
+		o.prefix = prefix
+	}
+}
+
 // Version represents a single version.
 type Version struct {
 	metadata string
@@ -60,8 +77,26 @@ type Version struct {
 
 // NewVersion parses the given version and returns a new
 // Version.
-func NewVersion(v string) (*Version, error) {
-	return newVersion(v, getVersionRegexp())
+func NewVersion(v string, opts ...Option) (*Version, error) {
+	options := &options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	vToParse := v
+	if options.prefix != "" {
+		if !strings.HasPrefix(v, options.prefix) {
+			return nil, fmt.Errorf("version %q does not have prefix %q", v, options.prefix)
+		}
+		vToParse = strings.TrimPrefix(v, options.prefix)
+	}
+
+	ver, err := newVersion(vToParse, getVersionRegexp())
+	if err != nil {
+		return nil, err
+	}
+	ver.original = v
+	return ver, nil
 }
 
 // NewSemver parses the given version and returns a new
