@@ -76,8 +76,10 @@ type Version struct {
 	original string
 }
 
-// NewVersion parses the given version and returns a new
-// Version.
+// NewVersion parses the given version and returns a new Version.
+//
+// Optional parsing behavior can be enabled with Option values such as
+// WithPrefix, which validates and strips an expected prefix before parsing.
 func NewVersion(v string, opts ...Option) (*Version, error) {
 	options := &options{}
 	for _, opt := range opts {
@@ -230,20 +232,6 @@ func (v *Version) Compare(other *Version) int {
 
 	// if we got this far, they're equal
 	return 0
-}
-
-// CompareStrict compares two versions while rejecting mismatched explicit
-// prefixes when both were created with WithPrefix.
-func (v *Version) CompareStrict(other *Version) (int, error) {
-	if v == nil || other == nil {
-		return 0, fmt.Errorf("cannot compare nil version")
-	}
-
-	if v.prefix != "" && other.prefix != "" && v.prefix != other.prefix {
-		return 0, fmt.Errorf("cannot compare versions with different prefixes %q and %q", v.prefix, other.prefix)
-	}
-
-	return v.Compare(other), nil
 }
 
 func (v *Version) equalSegments(other *Version) bool {
@@ -509,9 +497,4 @@ func (v *Version) Scan(src interface{}) error {
 	default:
 		return fmt.Errorf("cannot scan %T as Version", src)
 	}
-}
-
-// Value implements the driver.Valuer interface.
-func (v *Version) Value() (driver.Value, error) {
-	return v.String(), nil
 }
