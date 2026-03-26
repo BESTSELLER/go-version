@@ -70,6 +70,7 @@ func WithPrefix(prefix string) Option {
 type Version struct {
 	metadata string
 	pre      string
+	prefix   string
 	segments []int64
 	si       int
 	original string
@@ -97,6 +98,7 @@ func NewVersion(v string, opts ...Option) (*Version, error) {
 	if err != nil {
 		return nil, err
 	}
+	ver.prefix = options.prefix
 	ver.original = v
 	return ver, nil
 }
@@ -228,6 +230,20 @@ func (v *Version) Compare(other *Version) int {
 
 	// if we got this far, they're equal
 	return 0
+}
+
+// CompareStrict compares two versions while rejecting mismatched explicit
+// prefixes when both were created with WithPrefix.
+func (v *Version) CompareStrict(other *Version) (int, error) {
+	if v == nil || other == nil {
+		return 0, fmt.Errorf("cannot compare nil version")
+	}
+
+	if v.prefix != "" && other.prefix != "" && v.prefix != other.prefix {
+		return 0, fmt.Errorf("cannot compare versions with different prefixes %q and %q", v.prefix, other.prefix)
+	}
+
+	return v.Compare(other), nil
 }
 
 func (v *Version) equalSegments(other *Version) bool {
@@ -459,6 +475,11 @@ func (v *Version) bytes() []byte {
 // potential whitespace, `v` prefix, etc.
 func (v *Version) Original() string {
 	return v.original
+}
+
+// Prefix returns the explicit prefix used with WithPrefix, if any.
+func (v *Version) Prefix() string {
+	return v.prefix
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler interface.
